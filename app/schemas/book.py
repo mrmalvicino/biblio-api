@@ -3,7 +3,8 @@ def book_schema(book) -> dict:
         "id": str(book["_id"]),
         "isbn": book["isbn"],
         "title": book["title"],
-        "publish_year": book["publish_year"]
+        "publish_year": book["publish_year"],
+        "authors": [str(a) for a in book.get("authors", [])]
     }
 
 def books_schema(books) -> list:

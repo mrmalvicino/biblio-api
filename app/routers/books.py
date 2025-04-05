@@ -19,11 +19,28 @@ async def book(id: str):
 async def book(book: Book):
     if (book_exists("isbn", book.isbn)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El libro ya existe")
+    # Validar que todos los autores existen
+    for author_id in book.authors:
+        try:
+            obj_id = ObjectId(author_id)
+        except InvalidId:
+            raise HTTPException(status_code=400, detail=f"ID de autor inválido: {author_id}")
+        if not db_client.authors.find_one({"_id": obj_id}):
+            raise HTTPException(status_code=404, detail=f"Autor {author_id} no encontrado")
+    # Insertar el libro
     book_dict = dict(book)
     del book_dict["id"]
-    id = db_client.books.insert_one(book_dict).inserted_id
-    new_book = book_schema(db_client.books.find_one({"_id": id}))
-    return Book(**new_book)
+    book_dict["authors"] = [ObjectId(a) for a in book.authors]
+    inserted_id = db_client.books.insert_one(book_dict).inserted_id
+    # Actualizar cada autor con el ID del nuevo libro
+    for author_id in book.authors:
+        db_client.authors.update_one(
+            {"_id": ObjectId(author_id)},
+            {"$addToSet": {"books": inserted_id}}
+        )
+    # Devolver libro insertado
+    new_book = db_client.books.find_one({"_id": inserted_id})
+    return Book(**book_schema(new_book))
 
 @router.put("/", response_model=Book, status_code=status.HTTP_200_OK)
 async def book(book: Book):

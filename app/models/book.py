@@ -6,3 +6,4 @@ class Book(BaseModel):
     isbn: str
     title: str
     publish_year: int
+    authors: list[str]
